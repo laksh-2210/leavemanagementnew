@@ -22,17 +22,23 @@ app.get("/", (req, res) => {
     res.send("Leave Management System Backend is Running!");
 });
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => {
+// MongoDB Connection and Server Start
+const startServer = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+
         console.log("MongoDB Connected Successfully!");
 
         const PORT = process.env.PORT || 5000;
 
-        app.listen(PORT, () => {
+        app.listen(PORT, "0.0.0.0", () => {
             console.log(`Server running on port ${PORT}`);
         });
-    })
-    .catch((error) => {
+
+    } catch (error) {
         console.log("MongoDB Connection Error:", error.message);
-    });
+        process.exit(1);
+    }
+};
+
+startServer();

@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 
-const Leave = require("../models/Leave");
+const Leave = require("../models/leave");
 const jwt = require("jsonwebtoken");
 
 // AUTHENTICATION MIDDLEWARE
@@ -23,7 +23,6 @@ function verifyToken(req, res, next) {
 
         req.user = decoded;
         next();
-
     } catch (error) {
         return res.status(401).json({
             message: "Invalid token"
@@ -68,7 +67,6 @@ router.post("/apply", verifyToken, async (req, res) => {
             message: "Leave applied successfully",
             leave
         });
-
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -84,7 +82,6 @@ router.get("/my-leaves", verifyToken, async (req, res) => {
         }).sort({ createdAt: -1 });
 
         res.json(leaves);
-
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -106,7 +103,6 @@ router.get("/all", verifyToken, async (req, res) => {
         });
 
         res.json(leaves);
-
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -147,7 +143,6 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             message: "Leave status updated",
             leave
         });
-
     } catch (error) {
         res.status(500).json({
             message: error.message
