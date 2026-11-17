@@ -1,0 +1,98 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leave Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Leave Management System</h1>
+        <p>Student Leave Application Portal</p>
+    </header>
+
+    <main class="container">
+
+        <!-- LOGIN -->
+        <section id="loginSection" class="card">
+            <h2>Login</h2>
+
+            <input type="email" id="loginEmail" placeholder="Enter Email">
+
+            <input type="password" id="loginPassword" placeholder="Enter Password">
+
+            <button onclick="login()">Login</button>
+
+            <p>Don't have an account?
+                <a href="#" onclick="showRegister()">Register</a>
+            </p>
+        </section>
+
+        <!-- REGISTER -->
+        <section id="registerSection" class="card hidden">
+            <h2>Student Registration</h2>
+
+            <input type="text" id="regName" placeholder="Enter Name">
+
+            <input type="email" id="regEmail" placeholder="Enter Email">
+
+            <input type="password" id="regPassword" placeholder="Create Password">
+
+            <button onclick="register()">Register</button>
+
+            <p>Already have an account?
+                <a href="#" onclick="showLogin()">Login</a>
+            </p>
+        </section>
+
+        <!-- STUDENT DASHBOARD -->
+        <section id="studentDashboard" class="card hidden">
+
+            <h2>Student Dashboard</h2>
+
+            <h3>Apply for Leave</h3>
+
+            <input type="text" id="leaveReason" placeholder="Reason for Leave">
+
+            <label>From Date</label>
+            <input type="date" id="fromDate">
+
+            <label>To Date</label>
+            <input type="date" id="toDate">
+
+            <button onclick="applyLeave()">Submit Leave</button>
+
+            <hr>
+
+            <h3>My Leave Applications</h3>
+
+            <div id="myLeaves"></div>
+
+            <button class="logout" onclick="logout()">Logout</button>
+
+        </section>
+
+        <!-- STAFF DASHBOARD -->
+        <section id="staffDashboard" class="card hidden">
+
+            <h2>Staff Dashboard</h2>
+
+            <h3>Student Leave Applications</h3>
+
+            <div id="allLeaves"></div>
+
+            <button class="logout" onclick="logout()">Logout</button>
+
+        </section>
+
+        <p id="message"></p>
+
+    </main>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
