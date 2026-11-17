@@ -1,5 +1,4 @@
-
-const API = "http://localhost:5000/api";
+const API = "https://leavemanagementnew.onrender.com/api";
 
 let token = localStorage.getItem("token");
 let currentUser = JSON.parse(localStorage.getItem("user") || "null");
