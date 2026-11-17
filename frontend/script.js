@@ -1,112 +1,172 @@
+
 const API = "https://leavemanagementnew.onrender.com/api";
 
+let selectedRole = "student";
 let token = localStorage.getItem("token");
-let currentUser = JSON.parse(localStorage.getItem("user") || "null");
 
-// SHOW MESSAGE
-function showMessage(message) {
-    document.getElementById("message").innerText = message;
+function showLogin(role) {
+    selectedRole = role;
+
+    document.getElementById("loginTitle").innerText =
+        role === "staff" ? "Staff Login" : "Student Login";
+
+    document.getElementById("message").innerText = "";
 }
 
-// SHOW LOGIN
-function showLogin() {
-    document.getElementById("loginSection").classList.remove("hidden");
-    document.getElementById("registerSection").classList.add("hidden");
-}
-
-// SHOW REGISTER
-function showRegister() {
-    document.getElementById("loginSection").classList.add("hidden");
-    document.getElementById("registerSection").classList.remove("hidden");
-}
-
-// REGISTER
-async function register() {
-    const name = document.getElementById("regName").value.trim();
-    const email = document.getElementById("regEmail").value.trim();
-    const password = document.getElementById("regPassword").value;
-
-    try {
-        const response = await fetch(`${API}/auth/register`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ name, email, password })
-        });
-
-        const data = await response.json();
-
-        showMessage(data.message);
-
-        if (response.ok) {
-            showLogin();
-        }
-
-    } catch (error) {
-        showMessage("Server connection failed");
-    }
-}
-
-// LOGIN
 async function login() {
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const message = document.getElementById("message");
+
+    if (!email || !password) {
+        message.innerText = "Please enter email and password";
+        return;
+    }
 
     try {
         const response = await fetch(`${API}/auth/login`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            showMessage(data.message);
+            message.innerText = data.message || "Login failed";
             return;
         }
 
-        token = data.token;
-        currentUser = data.user;
+        const user = data.user || data;
+        const userToken = data.token;
 
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(currentUser));
+        if (!userToken) {
+            message.innerText = "Login token missing. Check backend response.";
+            return;
+        }
 
-        showDashboard();
+        if (user.role !== selectedRole) {
+            message.innerText = "Please select the correct login type";
+            return;
+        }
+
+        localStorage.setItem("token", userToken);
+        localStorage.setItem("user", JSON.stringify(user));
+        token = userToken;
+
+        if (user.role === "staff") {
+            showStaffDashboard();
+        } else {
+            showStudentDashboard();
+        }
 
     } catch (error) {
-        showMessage("Server connection failed");
+        message.innerText = "Server connection error";
     }
 }
 
-// SHOW DASHBOARD
-function showDashboard() {
-    document.getElementById("loginSection").classList.add("hidden");
-    document.getElementById("registerSection").classList.add("hidden");
+function showStaffDashboard() {
+    document.querySelector(".container").innerHTML = `
+        <h1>Staff Dashboard</h1>
+        <button onclick="loadLeaves()">View Leave Applications</button>
+        <button onclick="logout()">Logout</button>
+        <div id="leaveList"></div>
+    `;
 
-    if (currentUser.role === "student") {
-        document.getElementById("studentDashboard").classList.remove("hidden");
-        document.getElementById("staffDashboard").classList.add("hidden");
-        loadMyLeaves();
+    loadLeaves();
+}
 
-    } else if (currentUser.role === "staff") {
-        document.getElementById("staffDashboard").classList.remove("hidden");
-        document.getElementById("studentDashboard").classList.add("hidden");
-        loadAllLeaves();
+async function loadLeaves() {
+    const list = document.getElementById("leaveList");
+
+    try {
+        const response = await fetch(`${API}/leave/all`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const leaves = await response.json();
+
+        if (!response.ok) {
+            list.innerHTML = `<p>${leaves.message || "Unable to load leaves"}</p>`;
+            return;
+        }
+
+        if (!leaves.length) {
+            list.innerHTML = "<p>No leave applications found.</p>";
+            return;
+        }
+
+        list.innerHTML = leaves.map(leave => `
+            <div class="leave-card">
+                <h3>${leave.studentName}</h3>
+                <p>Email: ${leave.studentEmail}</p>
+                <p>Reason: ${leave.reason}</p>
+                <p>From: ${leave.fromDate}</p>
+                <p>To: ${leave.toDate}</p>
+                <p>Status: ${leave.status}</p>
+                ${
+                    leave.status === "Pending" ? `
+                    <button onclick="updateLeave('${leave._id}', 'Approved')">Approve</button>
+                    <button onclick="updateLeave('${leave._id}', 'Rejected')">Reject</button>
+                    ` : ""
+                }
+            </div>
+        `).join("");
+
+    } catch (error) {
+        list.innerHTML = "<p>Server connection error</p>";
     }
 }
 
-// APPLY LEAVE
+async function updateLeave(id, status) {
+    try {
+        const response = await fetch(`${API}/leave/update/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ status })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.message || "Update failed");
+            return;
+        }
+
+        alert(`Leave ${status}`);
+        loadLeaves();
+
+    } catch (error) {
+        alert("Server connection error");
+    }
+}
+
+function showStudentDashboard() {
+    document.querySelector(".container").innerHTML = `
+        <h1>Student Dashboard</h1>
+        <h2>Apply Leave</h2>
+        <input id="reason" placeholder="Leave reason">
+        <label>From Date</label>
+        <input type="date" id="fromDate">
+        <label>To Date</label>
+        <input type="date" id="toDate">
+        <button onclick="applyLeave()">Submit Leave</button>
+        <button onclick="myLeaves()">My Leaves</button>
+        <button onclick="logout()">Logout</button>
+        <div id="studentLeaves"></div>
+    `;
+}
+
 async function applyLeave() {
-    const reason = document.getElementById("leaveReason").value.trim();
+    const reason = document.getElementById("reason").value;
     const fromDate = document.getElementById("fromDate").value;
     const toDate = document.getElementById("toDate").value;
 
     if (!reason || !fromDate || !toDate) {
-        showMessage("Please fill all leave details");
+        alert("Please fill all fields");
         return;
     }
 
@@ -115,170 +175,69 @@ async function applyLeave() {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
+                Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({
-                reason,
-                fromDate,
-                toDate
-            })
+            body: JSON.stringify({ reason, fromDate, toDate })
         });
 
         const data = await response.json();
 
-        showMessage(data.message);
-
-        if (response.ok) {
-            document.getElementById("leaveReason").value = "";
-            document.getElementById("fromDate").value = "";
-            document.getElementById("toDate").value = "";
-
-            loadMyLeaves();
+        if (!response.ok) {
+            alert(data.message || "Leave application failed");
+            return;
         }
 
+        alert("Leave applied successfully!");
+        myLeaves();
+
     } catch (error) {
-        showMessage("Unable to apply leave");
+        alert("Server connection error");
     }
 }
 
-// STUDENT VIEW LEAVES
-async function loadMyLeaves() {
+async function myLeaves() {
+    const list = document.getElementById("studentLeaves");
+
     try {
         const response = await fetch(`${API}/leave/my-leaves`, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
+            headers: { Authorization: `Bearer ${token}` }
         });
 
         const leaves = await response.json();
 
         if (!response.ok) {
-            showMessage(leaves.message || "Unable to load leaves");
+            list.innerHTML = `<p>${leaves.message || "Unable to load leaves"}</p>`;
             return;
         }
 
-        const container = document.getElementById("myLeaves");
-
-        if (leaves.length === 0) {
-            container.innerHTML = "<p>No leave applications yet.</p>";
-            return;
-        }
-
-        container.innerHTML = leaves.map(leave => `
-            <div class="leave-card">
-                <p><b>Reason:</b> ${escapeHTML(leave.reason)}</p>
-                <p><b>From:</b> ${new Date(leave.fromDate).toLocaleDateString()}</p>
-                <p><b>To:</b> ${new Date(leave.toDate).toLocaleDateString()}</p>
-                <p><b>Status:</b> ${escapeHTML(leave.status)}</p>
-            </div>
-        `).join("");
+        list.innerHTML = leaves.length
+            ? leaves.map(leave => `
+                <div class="leave-card">
+                    <p>Reason: ${leave.reason}</p>
+                    <p>From: ${leave.fromDate}</p>
+                    <p>To: ${leave.toDate}</p>
+                    <p>Status: ${leave.status}</p>
+                </div>
+            `).join("")
+            : "<p>No leave applications yet.</p>";
 
     } catch (error) {
-        showMessage("Unable to load leave details");
+        list.innerHTML = "<p>Server connection error</p>";
     }
 }
 
-// STAFF VIEW ALL LEAVES
-async function loadAllLeaves() {
-    try {
-        const response = await fetch(`${API}/leave/all`, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        const leaves = await response.json();
-
-        if (!response.ok) {
-            showMessage(leaves.message || "Unable to load requests");
-            return;
-        }
-
-        const container = document.getElementById("allLeaves");
-
-        if (leaves.length === 0) {
-            container.innerHTML = "<p>No student leave requests.</p>";
-            return;
-        }
-
-        container.innerHTML = leaves.map(leave => `
-            <div class="leave-card">
-                <p><b>Student:</b> ${escapeHTML(leave.studentName)}</p>
-                <p><b>Email:</b> ${escapeHTML(leave.studentEmail)}</p>
-                <p><b>Reason:</b> ${escapeHTML(leave.reason)}</p>
-                <p><b>From:</b> ${new Date(leave.fromDate).toLocaleDateString()}</p>
-                <p><b>To:</b> ${new Date(leave.toDate).toLocaleDateString()}</p>
-                <p><b>Status:</b> ${escapeHTML(leave.status)}</p>
-
-                ${leave.status === "Pending" ? `
-                    <button class="approve" onclick="updateLeave('${leave._id}', 'Approved')">
-                        Approve
-                    </button>
-
-                    <button class="reject" onclick="updateLeave('${leave._id}', 'Rejected')">
-                        Reject
-                    </button>
-                ` : ""}
-            </div>
-        `).join("");
-
-    } catch (error) {
-        showMessage("Unable to load student requests");
-    }
-}
-
-// ESCAPE USER CONTENT
-function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[char]);
-}
-
-// UPDATE LEAVE STATUS
-async function updateLeave(id, status) {
-    try {
-        const response = await fetch(`${API}/leave/update/${id}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ status })
-        });
-
-        const data = await response.json();
-
-        showMessage(data.message);
-
-        if (response.ok) {
-            loadAllLeaves();
-        }
-
-    } catch (error) {
-        showMessage("Unable to update leave");
-    }
-}
-
-// LOGOUT
 function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
-    token = null;
-    currentUser = null;
-
-    document.getElementById("studentDashboard").classList.add("hidden");
-    document.getElementById("staffDashboard").classList.add("hidden");
-
-    showLogin();
-    showMessage("Logged out successfully");
+    location.reload();
 }
 
-// RESTORE LOGIN AFTER REFRESH
-if (token && currentUser) {
-    showDashboard();
+if (token) {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (user && user.role === "staff") {
+        showStaffDashboard();
+    } else if (user && user.role === "student") {
+        showStudentDashboard();
+    }
 }
